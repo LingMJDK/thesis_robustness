@@ -41,7 +41,7 @@ def train_step(
     n_batches    = 0
 
     # Create a GradScaler if AMP is enabled
-    scaler = GradScaler("cuda") if use_amp else None
+    scaler = GradScaler() if use_amp else None
 
     for X, y in train_data:
         # 1) Move input and target to device
@@ -50,7 +50,7 @@ def train_step(
 
         # 2) Forward + loss under autocast if AMP is on
         if use_amp:
-            with autocast('cuda'):
+            with autocast():
                 y_logits = model(X)
                 y_preds  = y_logits.argmax(dim=-1)
 
@@ -148,7 +148,7 @@ def train_step_adv_AUGMIX(
     n_batches  = 0
 
     # If using AMP, create a GradScaler. If not, we ignore it.
-    scaler = GradScaler("cuda") if use_amp else None
+    scaler = GradScaler() if use_amp else None
 
     for img_clean, img_aug1, img_aug2, labels in train_data:
         B = img_clean.size(0)
@@ -161,7 +161,7 @@ def train_step_adv_AUGMIX(
 
         # 2) Forward + loss under autocast if AMP is enabled
         if use_amp:
-            with autocast("cuda"):
+            with autocast():
                 logits_clean = model(img_clean)  # [B, num_classes]
                 logits_aug1  = model(img_aug1)
                 logits_aug2  = model(img_aug2)
