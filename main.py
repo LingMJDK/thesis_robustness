@@ -127,17 +127,7 @@ def main(DATA_SEED: int = 22,
     assert model_config["num_classes"] == len(CLASS_NAMES), \
         "num_classes must equal len(train_data.classes)"
 
-    # create a fixed generator for the train DataLoader
-    g = torch.Generator()
-    g.manual_seed(DATA_SEED)
 
-
-    train_dataloader = DataLoader(dataset=train_data,                  #  <-------- Check if train data is correct (100% or 10%)
-                                    batch_size=BATCH_SIZE,
-                                    shuffle=True,
-                                    num_workers=NUM_WORKERS,
-                                    pin_memory=True,
-                                    generator=g)
 
     val_dataloader = DataLoader(dataset=val_data,                    #  <-------- Check if val data is correct (100% or 10%)
                                 batch_size=BATCH_SIZE,
@@ -145,15 +135,29 @@ def main(DATA_SEED: int = 22,
                                 num_workers=NUM_WORKERS,
                                 pin_memory=True
                                 )
-    train_dataloader, val_dataloader
+    
 
 
     #_______ Initialize seeds, models, loss_fn, optimzizer (LOOP LEVEL 1) ________________
     for seed in SEEDS:
+        print(f"Starting run: seed={seed}, mixed_precision={MIXED_PRECISION}")
         torch.manual_seed(seed)            # seed CPU ops in PyTorch
         torch.cuda.manual_seed(seed)       # seed GPU ops in PyTorch
         np.random.seed(seed)               # seed NumPy (if used anywhere in transforms)
         random.seed(seed)                  # seed Python’s `random` (if used)
+        
+        
+        g = torch.Generator()
+        g.manual_seed(seed)
+        
+        train_dataloader = DataLoader(
+            dataset=train_data,
+            batch_size=BATCH_SIZE,
+            shuffle=True,
+            num_workers=NUM_WORKERS,
+            pin_memory=True,
+            generator=g
+        )
 
 
         # 1. Initialize the model
