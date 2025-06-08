@@ -37,8 +37,9 @@ def main(DATA_SEED: int = 22,
          MODEL_NAME: str = "ViT_base", # <---------- Reminder, always change model names when changing from ViT_base to MAE
          CHECKPOINT_DIR: str = 'models',
          DF_LOGS_SAVE_DIR: str = 'training_logs',
+         DATA_DIR: str = 'data'
          ):
-    # _______Set device____________
+    # _______Set device__________s__
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Device: {device}")
     
@@ -118,9 +119,10 @@ def main(DATA_SEED: int = 22,
     train_data, val_data, _ = create_train_val_test_ds(data_seed=DATA_SEED,
                                                             use_simple_augmix=USE_SIMPLE_AUGMIX,
                                                             use_advanced_augmix=USE_ADVANCED_AUGMIX,
-                                                            augmix_config=augmix_config)
+                                                            augmix_config=augmix_config,
+                                                            root=DATA_DIR,)
 
-    raw_train = datasets.CIFAR10(root="data", train=True, download=True, transform=None)
+    raw_train = datasets.CIFAR10(root=DATA_DIR, train=True, download=True, transform=None)
     CLASS_NAMES = raw_train.classes
     assert model_config["num_classes"] == len(CLASS_NAMES), \
         "num_classes must equal len(train_data.classes)"

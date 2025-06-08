@@ -123,7 +123,8 @@ class ThreeViewCIFAR_Tensor(Dataset):
 def create_train_val_test_ds(data_seed: int,
                              use_simple_augmix: bool = False,
                              use_advanced_augmix: bool = False,
-                             augmix_config=None):
+                             augmix_config=None,
+                             root='data'):
     # CIFAR-10 channel statistics
   mean = (0.4914, 0.4822, 0.4465)
   std  = (0.2470, 0.2435, 0.2616)
@@ -164,7 +165,7 @@ def create_train_val_test_ds(data_seed: int,
   # 3. Load the training set without transforms
 
   raw_train = datasets.CIFAR10(
-      root="data",
+      root=root,
       train=True,
       download=True,
       transform=None,       # <-------- no transform here
@@ -174,7 +175,7 @@ def create_train_val_test_ds(data_seed: int,
   # 4. Load the test set with transforms
 
   test_dataset = datasets.CIFAR10(
-      root="data",
+      root=root,
       train=False,
       download=True,
       transform=test_transform,
