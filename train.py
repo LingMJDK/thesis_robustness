@@ -50,7 +50,7 @@ def train_step(
 
         # 2) Forward + loss under autocast if AMP is on
         if use_amp:
-            with autocast(device_type=device.type):
+            with autocast(device_type=device):
                 y_logits = model(X)
                 y_preds  = y_logits.argmax(dim=-1)
 
@@ -161,7 +161,7 @@ def train_step_adv_AUGMIX(
 
         # 2) Forward + loss under autocast if AMP is enabled
         if use_amp:
-            with autocast(device_type=device.type):
+            with autocast(device_type=device):
                 logits_clean = model(img_clean)  # [B, num_classes]
                 logits_aug1  = model(img_aug1)
                 logits_aug2  = model(img_aug2)
