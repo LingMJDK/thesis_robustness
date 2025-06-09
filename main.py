@@ -23,8 +23,7 @@ from model import ViTClassificationHead
 import fire
 
 
-def main(DATA_SEED: int = 22,
-         SEEDS: list = [11, 22, 33], # <------ Determines the number of models to train in this session
+def main(SEEDS: list = [11, 22, 33], # <------ Determines the number of models to train in this session
          EPOCHS: int = 100,
          BATCH_SIZE: int = 256,
          NUM_WORKERS: int = 10,
@@ -58,16 +57,6 @@ def main(DATA_SEED: int = 22,
     if device != 'cuda':  # Automically turn mixed precision of when training on cpu
         MIXED_PRECISION = False
     
-    # Fix all the RNG seeds for reproducibility
-    random.seed(DATA_SEED)
-    np.random.seed(DATA_SEED)
-    torch.manual_seed(DATA_SEED)
-
-    # Make cuDNN deterministic (this must happen before any cudnn‐based ops)
-    cudnn.deterministic = True
-    cudnn.benchmark = False
-    
-
     if USE_SIMPLE_AUGMIX:
         MODEL_NAME = f'{MODEL_NAME}_SimAUGMIX'
 
@@ -116,35 +105,40 @@ def main(DATA_SEED: int = 22,
                     "train_time_cum": [],
                             }
 
-    train_data, val_data, _ = create_train_val_test_ds(data_seed=DATA_SEED,
-                                                            use_simple_augmix=USE_SIMPLE_AUGMIX,
-                                                            use_advanced_augmix=USE_ADVANCED_AUGMIX,
-                                                            augmix_config=augmix_config,
-                                                            root=DATA_DIR,)
+
 
     raw_train = datasets.CIFAR10(root=DATA_DIR, train=True, download=True, transform=None)
     CLASS_NAMES = raw_train.classes
     assert model_config["num_classes"] == len(CLASS_NAMES), \
-        "num_classes must equal len(train_data.classes)"
-
-
-
-    val_dataloader = DataLoader(dataset=val_data,                    #  <-------- Check if val data is correct (100% or 10%)
-                                batch_size=BATCH_SIZE,
-                                shuffle=False,
-                                num_workers=NUM_WORKERS,
-                                pin_memory=True
-                                )
-    
+        "num_classes must equal len(raw_train.classes)"    
 
 
     #_______ Initialize seeds, models, loss_fn, optimzizer (LOOP LEVEL 1) ________________
     for seed in SEEDS:
+        train_data, val_data, _ = create_train_val_test_ds(data_seed=seed,
+                                                    use_simple_augmix=USE_SIMPLE_AUGMIX,
+                                                    use_advanced_augmix=USE_ADVANCED_AUGMIX,
+                                                    augmix_config=augmix_config,
+                                                    root=DATA_DIR,)
+        
+        val_dataloader = DataLoader(dataset=val_data,                    #  <-------- Check if val data is correct (100% or 10%)
+                            batch_size=BATCH_SIZE,
+                            shuffle=False,
+                            num_workers=NUM_WORKERS,
+                            pin_memory=True
+                            )
+        
+
+        
         print(f"Starting run: seed={seed}, mixed_precision={MIXED_PRECISION}")
         torch.manual_seed(seed)            # seed CPU ops in PyTorch
         torch.cuda.manual_seed(seed)       # seed GPU ops in PyTorch
         np.random.seed(seed)               # seed NumPy (if used anywhere in transforms)
         random.seed(seed)                  # seed Python’s `random` (if used)
+        
+        # Make cuDNN deterministic (this must happen before any cudnn‐based ops)
+        cudnn.deterministic = True
+        cudnn.benchmark = False
         
         
         g = torch.Generator()
