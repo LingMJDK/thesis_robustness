@@ -56,12 +56,17 @@ def print_train_time(start: float, end: float, device: torch.device = None):
 
 
 
-def lr_lambda(e):
-    if e < 10:
-        return (e+1) / 10       # so at e=0 → 1/10, e=9 → 10/10
-    t = (e - 10) / (100 - 10)
+def lr_lambda(epoch):
+    if epoch < 10:
+        return (epoch+1) / 10       # so at e=0 → 1/10, e=9 → 10/10
+    t = (epoch - 10) / (100 - 10)
     return 0.5*(1 + math.cos(math.pi * t))
 
+def lr_lambda_MAE(epoch):
+    if epoch < 10:
+        return (epoch+1) / 10       # so at e=0 → 1/10, e=9 → 10/10
+    t = (epoch - 10) / (200 - 10)
+    return 0.5*(1 + math.cos(math.pi * t))
 
 def save_dataframe_if_not_exists(dataframe, save_dir, filename):
   """

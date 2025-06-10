@@ -34,6 +34,7 @@ def train_step(
 
     Returns:
       (train_loss, train_accuracy) averaged over all batches.
+      current learning rate
     """
     model.train()
     running_loss = 0.0
@@ -141,6 +142,7 @@ def train_step_adv_AUGMIX(
 
     Returns:
       (train_loss, train_accuracy) averaged over all batches.
+      current learning rate
     """
     model.train()
     epoch_loss = 0.0
