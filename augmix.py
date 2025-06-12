@@ -3,17 +3,20 @@ from PIL import Image
 import augmentations
 # CIFAR-10 constants (make sure they match the correct “mean”/“std”)
 
-MEAN = np.array([0.4914, 0.4822, 0.4465])
-STD  = np.array([0.2470, 0.2435, 0.2616])
+# MEAN = np.array([0.4914, 0.4822, 0.4465])
+# STD  = np.array([0.2470, 0.2435, 0.2616])
 
-def normalize_np(image: np.ndarray) -> np.ndarray:
+def normalize_np(image: np.ndarray, 
+                 mean = (0.4914, 0.4822, 0.4465),
+                 std  = (0.2470, 0.2435, 0.2616)
+                 ) -> np.ndarray:
     """
     Normalize a NumPy image (H×W×C float32 in [0..1]) by channel‐wise mean/std.
     Returns a normalized float32 image in the same shape.
     """
     # image is H×W×C, values in [0..1]
     image = image.transpose(2, 0, 1)  # → C×H×W
-    image = (image - MEAN[:, None, None]) / STD[:, None, None]
+    image = (image - np.array(mean)[:, None, None]) / np.array(std)[:, None, None]
     return image.transpose(1, 2, 0)   # → H×W×C
 
 def apply_op(image: np.ndarray, op, severity: int) -> np.ndarray:
@@ -34,7 +37,9 @@ def augment_and_mix(
     severity: int = 3,
     width: int = 3,
     depth: int = -1,
-    alpha: float = 1.0
+    alpha: float = 1.0,
+    mean: tuple = (0.4914, 0.4822, 0.4465),
+    std: tuple = (0.2470, 0.2435, 0.2616)
 ) -> np.ndarray:
     """
     Given a raw H×W×C NumPy image in [0..1], produce an AugMix‐augmented image
@@ -51,9 +56,9 @@ def augment_and_mix(
             op = np.random.choice(augmentations.augmentations)
             image_aug = apply_op(image_aug, op, severity)
 
-        mix += ws[i] * normalize_np(image_aug)
+        mix += ws[i] * normalize_np(image_aug, mean, std)
 
-    mixed = (1.0 - m) * normalize_np(image) + m * mix
+    mixed = (1.0 - m) * normalize_np(image, mean, std) + m * mix
     return mixed  # still H×W×C float32
 
 class AugMix(object):
@@ -68,12 +73,16 @@ class AugMix(object):
         severity: int = 3,
         width: int = 3,
         depth: int = -1,
-        alpha: float = 1.0
+        alpha: float = 1.0,
+        mean: tuple = (0.4914, 0.4822, 0.4465),
+        std: tuple = (0.2470, 0.2435, 0.2616)
     ):
         self.severity = severity
         self.width = width
         self.depth = depth
         self.alpha = alpha
+        self.mean = np.array(mean)
+        self.std  = np.array(std)
 
     def __call__(self, pil_img):
         """
@@ -91,12 +100,12 @@ class AugMix(object):
             severity=self.severity,
             width=self.width,
             depth=self.depth,
-            alpha=self.alpha
+            alpha=self.alpha,
         )
 
         # Convert back to [0..255] range to get a PIL.Image again
         # First “un-normalize” from (img − mean)/std → img in [0..1]
-        unnorm = (augmixed * STD[None, None, :] + MEAN[None, None, :])
+        unnorm = (augmixed * self.std[None, None, :] + self.mean[None, None, :])
         unnorm = np.clip(unnorm, 0.0, 1.0)
 
         # Finally, to [0..255] uint8

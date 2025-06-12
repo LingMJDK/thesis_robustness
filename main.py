@@ -14,7 +14,7 @@ import torchvision.datasets as datasets
 
 from tqdm import tqdm
 from timeit import default_timer as Timer
-from utils import save_dataframe_if_not_exists, save_checkpoint, lr_lambda, print_train_time
+from utils import save_dataframe_if_not_exists, save_checkpoint, lr_lambda, print_train_time, lr_lambda_MAE
 from train import train_step, train_step_adv_AUGMIX, accuracy_fn
 from test import test_step
 

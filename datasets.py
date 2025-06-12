@@ -92,12 +92,12 @@ def threeview_collate_fn(batch):
 
 
 class ThreeViewCIFAR_Tensor(Dataset):
-    def __init__(self, base_subset, augmix_config):
+    def __init__(self, base_subset, 
+                 augmix_config, 
+                 mean= (0.4914, 0.4822, 0.4465), 
+                 std=(0.2470, 0.2435, 0.2616)):
         self.base   = base_subset
         self.augmix = AugMix(**augmix_config)  # create once per worker
-
-        mean = (0.4914, 0.4822, 0.4465)
-        std  = (0.2470, 0.2435, 0.2616)
         self.normalize = T.Compose([
             T.ToTensor(),
             T.Normalize(mean, std),
@@ -124,10 +124,9 @@ def create_train_val_test_ds(data_seed: int,
                              use_simple_augmix: bool = False,
                              use_advanced_augmix: bool = False,
                              augmix_config=None,
-                             root='data'):
-    # CIFAR-10 channel statistics
-  mean = (0.4914, 0.4822, 0.4465)
-  std  = (0.2470, 0.2435, 0.2616)
+                             root='data',
+                             mean = (0.4914, 0.4822, 0.4465),
+                             std = (0.2470, 0.2435, 0.2616)):
 
   assert not (use_simple_augmix and use_advanced_augmix), \
   'Only one type of AUGMIX can be active, please select one.'
@@ -196,7 +195,7 @@ def create_train_val_test_ds(data_seed: int,
 
   # Apply three view augmix when use_advanced_augmix is turned on
   if use_advanced_augmix:
-    train_dataset = ThreeViewCIFAR_Tensor(train_split, augmix_config)
+    train_dataset = ThreeViewCIFAR_Tensor(train_split, augmix_config, mean=mean, std=std)
   else:
     train_dataset = WrappedSubset(train_split, transform=train_transform)
 
