@@ -45,6 +45,8 @@ def augment_and_mix(
     Given a raw H×W×C NumPy image in [0..1], produce an AugMix‐augmented image
     (also H×W×C float32). You can tune `severity`, `width`, `depth`, and `alpha`.
     """
+    mean = np.array(mean)
+    std  = np.array(std)
     ws = np.float32(np.random.dirichlet([alpha] * width))
     m  = np.float32(np.random.beta(alpha, alpha))
 
@@ -101,6 +103,8 @@ class AugMix(object):
             width=self.width,
             depth=self.depth,
             alpha=self.alpha,
+            mean=self.mean,
+            std=self.std
         )
 
         # Convert back to [0..255] range to get a PIL.Image again

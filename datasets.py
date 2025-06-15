@@ -120,88 +120,88 @@ class ThreeViewCIFAR_Tensor(Dataset):
 
         return img_clean, img_aug1, img_aug2, label
 
-def create_train_val_test_ds(data_seed: int,
-                             use_simple_augmix: bool = False,
-                             use_advanced_augmix: bool = False,
-                             augmix_config=None,
-                             root='data',
-                             mean = (0.4914, 0.4822, 0.4465),
-                             std = (0.2470, 0.2435, 0.2616)):
+def create_train_val_test_ds(
+    data_seed: int,
+    use_simple_augmix: bool = False,
+    use_advanced_augmix: bool = False,
+    augmix_config=None,
+    root: str = 'data',
+    mean: tuple = (0.4914, 0.4822, 0.4465),
+    std: tuple = (0.2470, 0.2435, 0.2616),
+    dataset_cls=datasets.CIFAR10,      # new argument
+    dataset_kwargs: dict = None                    # optional extra kwargs
+):
+    assert not (use_simple_augmix and use_advanced_augmix), \
+        'Only one type of AUGMIX can be active, please select one.'
 
-  assert not (use_simple_augmix and use_advanced_augmix), \
-  'Only one type of AUGMIX can be active, please select one.'
+    if dataset_kwargs is None:
+        dataset_kwargs = {}
 
-  if not use_simple_augmix:
-    # 1.a) “Weak” baseline augmentation for all ViT training runs
-    train_transform = T.Compose([
-        # zero-pad to 40×40 then random 32×32 crop → translation augmentation
-        T.RandomCrop(32, padding=4),
-        # 50% probability horizontal flip → reflection augmentation
-        T.RandomHorizontalFlip(),
-        # convert PIL image to FloatTensor in [0,1]
-        T.ToTensor(),
-        # subtract per-channel mean, divide by per-channel std
-        T.Normalize(mean, std),
+    # 1. Build train_transform
+    if not use_simple_augmix:
+        train_transform = T.Compose([
+            T.RandomCrop(32, padding=4),
+            T.RandomHorizontalFlip(),
+            T.ToTensor(),
+            T.Normalize(mean, std),
+        ])
+    else:
+        assert augmix_config is not None, "Please provide a valid configuration for AUGMIX"
+        train_transform = T.Compose([
+            T.RandomCrop(32, padding=4),
+            T.RandomHorizontalFlip(),
+            AugMix(**augmix_config),
+            T.ToTensor(),
+            T.Normalize(mean, std),
         ])
 
-  else:
-    assert augmix_config != None, "Please provide a valid configuration for AUGMIX"
-    # 1.b) Standard “weak” CIFAR-10 augment + AugMix
-    train_transform = T.Compose([
-      T.RandomCrop(32, padding=4),
-      T.RandomHorizontalFlip(),
-      AugMix(**augmix_config),
-      T.ToTensor(),
-      T.Normalize(mean, std),
-  ])
+    # 2. Build test_transform
+    test_transform = T.Compose([
+        T.ToTensor(),
+        T.Normalize(mean, std),
+    ])
 
-  # 2. Evaluation transforms for CIFAR-10 / CIFAR-C ->  Use for Val- and Test set
-  test_transform = T.Compose([
-      T.ToTensor(),
-      T.Normalize(mean, std),
-      ])
+    # 3. Load raw train (no transform)
+    raw_train = dataset_cls(
+        root=root,
+        train=True,
+        download=True,
+        transform=None,
+        target_transform=None,
+        **dataset_kwargs
+    )
 
-  # 3. Load the training set without transforms
+    # 4. Load test set (with transforms)
+    test_dataset = dataset_cls(
+        root=root,
+        train=False,
+        download=True,
+        transform=test_transform,
+        **dataset_kwargs
+    )
 
-  raw_train = datasets.CIFAR10(
-      root=root,
-      train=True,
-      download=True,
-      transform=None,       # <-------- no transform here
-      target_transform=None
-      )
+    # 5. Split into train/val
+    total = len(raw_train)
+    val_size = total // 10
+    train_size = total - val_size
 
-  # 4. Load the test set with transforms
+    g = torch.Generator().manual_seed(data_seed)
+    train_split, val_split = random_split(
+        dataset=raw_train,
+        lengths=[train_size, val_size],
+        generator=g
+    )
 
-  test_dataset = datasets.CIFAR10(
-      root=root,
-      train=False,
-      download=True,
-      transform=test_transform,
-  )
+    # 6. Wrap splits
+    if use_advanced_augmix:
+        train_dataset = ThreeViewCIFAR_Tensor(train_split, augmix_config, mean=mean, std=std)
+    else:
+        train_dataset = WrappedSubset(train_split, transform=train_transform)
 
-  # 5. Split training set into 90% train, 10% val
+    val_dataset = WrappedSubset(val_split, transform=test_transform)
 
-  total_train = len(raw_train)       # 50,000
-  val_size    = total_train // 10    # 5,000
-  train_size  = total_train - val_size  # 45,000
+    return train_dataset, val_dataset, test_dataset
 
-  g = torch.Generator()
-  g.manual_seed(data_seed)
-
-  train_split, val_split = random_split(dataset=raw_train,
-                                    lengths=[train_size, val_size],
-                                    generator=g)
-
-  # Apply three view augmix when use_advanced_augmix is turned on
-  if use_advanced_augmix:
-    train_dataset = ThreeViewCIFAR_Tensor(train_split, augmix_config, mean=mean, std=std)
-  else:
-    train_dataset = WrappedSubset(train_split, transform=train_transform)
-
-  val_dataset   = WrappedSubset(val_split, transform=test_transform)
-
-  return train_dataset, val_dataset, test_dataset
 
 
 
