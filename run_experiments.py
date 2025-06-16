@@ -71,8 +71,8 @@ def run_experiment(
       mean = (0.4914, 0.4822, 0.4465)
       std  = (0.2470, 0.2435, 0.2616)
 
-    # peak_lr_mae = LEARNING_RATE_MAE * BATCH_SIZE_PRE_TRAIN / 256
-    peak_lr_mae = LEARNING_RATE_MAE
+    peak_lr_mae = LEARNING_RATE_MAE * BATCH_SIZE_PRE_TRAIN / 256
+    # peak_lr_mae = LEARNING_RATE_MAE
 
     # Device setup
     device = "cuda" if torch.cuda.is_available() else "cpu"
