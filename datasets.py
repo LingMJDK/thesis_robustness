@@ -9,6 +9,10 @@ from torch.utils.data import Dataset, random_split
 import torchvision.transforms as T
 from torchvision import datasets
 from torch.utils.data import Dataset, DataLoader
+import urllib.request
+import zipfile
+from torchvision.datasets import STL10, ImageFolder
+from torch.utils.data import ConcatDataset, DataLoader
 
 class CIFAR10C(Dataset):
     def __init__(
@@ -228,6 +232,110 @@ def download_and_extract_cifar10c():
         tar.extractall(path=target_dir)
     print("Extraction complete.")
 
+
+
+def get_tiny_imagenet_dataset(
+    root: str = "data",
+    train_transform=None,
+    url: str = "http://cs231n.stanford.edu/tiny-imagenet-200.zip",
+    archive_name: str = "tiny-imagenet-200.zip",
+    extract_dir: str = "tiny-imagenet-200"
+) -> ImageFolder:
+    """
+    Ensure TinyImageNet is downloaded+extracted under `root/extract_dir`.
+    Returns an ImageFolder for the train split.
+
+    Args:
+      root           : base folder for download/extraction
+      train_transform: transform to apply to training images
+      url            : download URL for the zip archive
+      archive_name   : local filename under `root` for the zip
+      extract_dir    : subfolder name after extraction
+    """
+    archive_path = os.path.join(root, archive_name)
+    data_dir     = os.path.join(root, extract_dir)
+    train_dir    = os.path.join(data_dir, "train")
+
+    # 1) Download & extract if the *train* folder doesn't yet exist
+    if not os.path.isdir(train_dir):
+        os.makedirs(root, exist_ok=True)
+        if not os.path.exists(archive_path):
+            print(f"Downloading TinyImageNet to {archive_path}...")
+            urllib.request.urlretrieve(url, archive_path)
+            print("Download complete.")
+        print(f"Extracting {archive_path} → {data_dir}/")
+        with zipfile.ZipFile(archive_path, "r") as z:
+            z.extractall(root)
+        print("Extraction complete.")
+
+    # 2) Return the ImageFolder
+    return ImageFolder(train_dir, transform=train_transform)
+
+
+def create_pretrain_loaders(
+    split_seed: int,
+    root: str = 'data',
+    image_size: int = 96,
+    batch_size: int = 256,
+    num_workers: int = 10,
+    mean: tuple = (0.485, 0.456, 0.406),
+    std: tuple  = (0.229, 0.224, 0.225),
+    val_split: float = 0.1,
+    prefetch_factor: int = 2,
+    persistent_workers: bool = True
+
+):
+    """
+    Build DataLoaders over the STL-10 unlabeled split + TinyImageNet train split,
+    all resized to `image_size` and normalized by the given mean/std, then split
+    into train & val for MAE pretraining.
+
+    Returns:
+      train_loader, val_loader
+    """
+    tf = T.Compose([
+        T.Resize((image_size, image_size)),
+        T.RandomCrop(image_size, padding=4),
+        T.RandomHorizontalFlip(),
+        T.ToTensor(),
+        T.Normalize(mean, std),
+    ])
+
+    # 1) Datasets
+    stl = STL10(root, split='unlabeled', download=True, transform=tf)
+    tin = ImageFolder(os.path.join(root, 'tiny-imagenet-200', 'train'), transform=tf)
+
+    full = ConcatDataset([stl, tin])
+
+    # 2) split
+    total = len(full)
+    val_size = int(val_split * total)
+    train_size = total - val_size
+    g = torch.Generator().manual_seed(split_seed)
+    train_ds, val_ds = random_split(full, [train_size, val_size], generator=g)
+
+    # 3) loaders
+    train_loader = DataLoader(train_ds,
+                              batch_size=batch_size,
+                              shuffle=True,
+                              num_workers=num_workers,
+                              pin_memory=True,
+                              prefetch_factor=prefetch_factor,
+                              persistent_workers=persistent_workers
+    )
+    val_loader = DataLoader(val_ds,
+                            batch_size=batch_size,
+                            shuffle=False,
+                            num_workers=num_workers,
+                            pin_memory=True,
+                            prefetch_factor=prefetch_factor,
+                            persistent_workers=persistent_workers
+    )
+
+    return train_loader, val_loader
+
+
 if __name__ == "__main__":
     # download_and_extract_cifar10c()
+    get_tiny_imagenet_dataset()
     pass

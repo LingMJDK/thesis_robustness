@@ -178,4 +178,6 @@ if __name__ == "__main__":
     for workers in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 18, 20]:
         t = measure_loading_time(num_workers=workers)
         print(f"num_workers={workers:>2} → {t:.2f}s for 100 batches")
+    print(f"CPU count: {os.cpu_count()}")
+    
         

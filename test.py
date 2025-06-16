@@ -11,6 +11,8 @@ from torch.utils.data import DataLoader
 from datetime import datetime
 import pytz
 from datasets import CIFAR10C
+from model import unpatchify
+import matplotlib.pyplot as plt
 
 def test_step(model, test_data, loss_fn, accuracy_fn, device, epoch, task="unknown"):
     model.eval()
@@ -36,6 +38,60 @@ def test_step(model, test_data, loss_fn, accuracy_fn, device, epoch, task="unkno
     print(f"Epoch: {epoch} | Test loss: {test_loss:.4f} | Test accuracy {test_acc:.2f}%")
     return test_loss, test_acc
 
+def mae_test_step(
+    model: nn.Module,
+    epoch: int,
+    dataloader: DataLoader,
+    device: torch.device,
+    vis_interval: int,
+    image_size: int,
+    mask_ratio: float = 0.75
+    ) -> float:
+    """
+    Single‐epoch evaluation step for a Masked Autoencoder, with optional visualization.
+
+    Params:
+      model (nn.Module): MaskedAutoencoderViT instance to evaluate.
+      epoch (int): Current epoch number (for deciding when to visualize).
+      dataloader (DataLoader): Yields (images, _) per batch.
+      device (torch.device): Device to run evaluation on.
+      vis_interval (int): Visualize reconstructions every N epochs.
+      image_size (int): Height/width of original images for unpatchify.
+      mask_ratio (float, optional): Fraction of patches to mask (default=0.75).
+
+    Returns:
+      recon_loss (float): Average mean‐squared‐error over all evaluation samples.
+    """
+    model.eval()
+    total_loss = 0.0
+    total_samples = 0
+
+    with torch.inference_mode():
+        for X, _ in dataloader:
+            X = X.to(device)
+            loss, _, _ = model(X, mask_ratio)
+            total_loss += loss.item() * X.size(0)
+            total_samples += X.size(0)
+
+    recon_loss = total_loss / total_samples
+    print(f"Reconstruction Loss (Average MSE): {recon_loss:.4f}")
+
+    # Visualize reconstructions at specified interval
+    if epoch % vis_interval == 0:
+        X_vis, _ = next(iter(dataloader))
+        X_vis_cpu = X_vis.cpu()
+
+        with torch.inference_mode():
+            _, pred_patches, _ = model(X_vis.to(device), mask_ratio)
+        recon = unpatchify(
+            pred_patches.cpu(),
+            model.patch_size,
+            model.in_channels,
+            image_size
+        )
+        plot_reconstructions(X_vis_cpu, recon, n=8)
+
+    return recon_loss
 
 def evaluate_cifar10c(
     model: torch.nn.Module,
@@ -178,3 +234,52 @@ def eval_models_clean_test(models: List[Tuple[nn.Module, str]],
       save_dataframe_if_not_exists(df_clean, save_dir, file_name)
 
     return df_clean
+
+
+def plot_reconstructions(imgs,
+                         recon_imgs,
+                         n=8,
+                         mean: tuple = (0.485, 0.456, 0.406),
+                         std: tuple  = (0.229, 0.224, 0.225),
+                         ):
+    """
+    Plots the first n original images and their reconstructions side by side,
+    with denormalization for CIFAR-10.
+
+    Args:
+      imgs:       Tensor of shape (B, C, H, W), normalized images.
+      recon_imgs: Tensor of shape (B, C, H, W), normalized reconstructions.
+      n:          Number of examples to display.
+    """
+    imgs = imgs.cpu()
+    recon_imgs = recon_imgs.cpu()
+
+    # Get shapes
+    B, C, H, W = imgs.shape
+
+    mean = torch.tensor(mean, dtype=imgs.dtype, device=imgs.device).reshape(1, C, 1, 1)
+    std  = torch.tensor(std, dtype=imgs.dtype, device=imgs.device).reshape(1, C, 1, 1)
+
+    imgs    = imgs * std + mean
+    recon_imgs = recon_imgs * std + mean
+
+    imgs = torch.clamp(imgs, 0, 1)
+    recon_imgs = torch.clamp(recon_imgs, 0, 1)
+
+
+    plt.figure(figsize=(n*2, 4))
+    for i in range(min(n, B)): # Ensure we don't exceed batch size
+
+        ax = plt.subplot(2, n, i + 1)
+        plt.imshow(imgs[i].permute(1, 2, 0).numpy())
+        ax.set_title("Original")
+        ax.axis("off")
+
+        # Reconstructed image
+        ax = plt.subplot(2, n, n + i + 1)
+        plt.imshow(recon_imgs[i].permute(1, 2, 0).numpy()) # No need to clip again here
+        ax.set_title("Reconstructed")
+        ax.axis("off")
+
+    plt.tight_layout()
+    plt.show()

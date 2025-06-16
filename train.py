@@ -257,6 +257,70 @@ def train_step_adv_AUGMIX(
 
     return train_loss, train_accuracy, learning_rate
 
+def mae_train_step(
+    model: nn.Module,
+    epoch: int,
+    optimizer: torch.optim.Optimizer,
+    scheduler,
+    device: torch.device,
+    mask_ratio: float,
+    train_dataloader: DataLoader,
+    use_amp: bool
+    ) -> float:
+    """
+    Single‐epoch training step for a Masked Autoencoder.
+
+    Params:
+      model (nn.Module): MaskedAutoencoderViT instance to train.
+      epoch (int): Current epoch number (for logging purposes).
+      optimizer (torch.optim.Optimizer): Optimizer for MAE parameters.
+      scheduler: Learning‐rate scheduler to step after the epoch.
+      device (torch.device): Device to run training on.
+      mask_ratio (float): Fraction of patches to randomly mask.
+      train_dataloader (DataLoader): Yields (images, _) per batch.
+      use_amp (bool): If True, use mixed‐precision (autocast + GradScaler).
+
+    Returns:
+      train_mse (float): Average mean‐squared‐error over all training samples.
+      current_lr (float): Learning rate after stepping the scheduler.
+    """
+    scaler = GradScaler() if use_amp else None
+    model.train()
+    run_loss = 0.0
+    total_samples = 0
+
+    for X, _ in train_dataloader:
+        X = X.to(device, non_blocking=True)
+        optimizer.zero_grad()
+
+        if use_amp:
+            with autocast(device_type=device):
+              loss, _, _ = model(X, mask_ratio)
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
+        else:
+            loss, _, _ = model(X, mask_ratio)
+            loss.backward()
+            optimizer.step()
+
+        run_loss += loss.item() * X.size(0)
+        total_samples += X.size(0)
+
+    train_mse = run_loss / total_samples
+
+    current_lr = optimizer.param_groups[0]["lr"]
+    if scheduler is not None:
+        scheduler.step()
+
+    print(
+    f"MAE pre-training phase "
+    f"Epoch: {epoch} | Train Loss (MSE): {train_mse:.4f} | lr: {current_lr:.6f}")
+
+    return train_mse, current_lr
+
+
+
 
 def accuracy_fn(y_pred, y_true):
     """Calculates accuracy between truth labels and predictions.
