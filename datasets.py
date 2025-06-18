@@ -272,11 +272,10 @@ def get_tiny_imagenet_dataset(
     # 2) Return the ImageFolder
     return ImageFolder(train_dir, transform=train_transform)
 
-
 def create_pretrain_loaders(
     split_seed: int,
     root: str = 'data',
-    image_size: int = 32,  # changed default to 32
+    image_size: int = 32,
     batch_size: int = 256,
     num_workers: int = 10,
     mean: tuple = (0.485, 0.456, 0.406),
@@ -284,7 +283,6 @@ def create_pretrain_loaders(
     val_split: float = 0.1,
     prefetch_factor: int = 2,
     persistent_workers: bool = True
-
 ):
     """
     Build DataLoaders over the STL-10 unlabeled split + TinyImageNet train split + CIFAR-10 train split,
@@ -294,29 +292,54 @@ def create_pretrain_loaders(
     Returns:
       train_loader, val_loader
     """
-    tf = T.Compose([
+    import torchvision.transforms as T
+    from torchvision.datasets import STL10, ImageFolder, CIFAR10
+    from torch.utils.data import ConcatDataset, DataLoader, Subset
+    import os
+    import torch
+
+    tf_train = T.Compose([
         T.Resize((image_size, image_size)),
         T.RandomCrop(image_size, padding=4),
         T.RandomHorizontalFlip(),
         T.ToTensor(),
         T.Normalize(mean, std),
     ])
+    tf_val = T.Compose([
+        T.Resize((image_size, image_size)),
+        T.ToTensor(),
+        T.Normalize(mean, std),
+    ])
 
-    # 1) Datasets
-    stl = STL10(root, split='unlabeled', download=True, transform=tf)
-    tin = ImageFolder(os.path.join(root, 'tiny-imagenet-200', 'train'), transform=tf)
-    cifar = CIFAR10(root, train=True, download=True, transform=tf)
+    # Helper to split indices
+    def split_indices(n, val_split, seed):
+        g = torch.Generator().manual_seed(seed)
+        idxs = torch.randperm(n, generator=g)
+        val_size = int(val_split * n)
+        return idxs[val_size:], idxs[:val_size]
 
-    full = ConcatDataset([stl, tin, cifar])
+    # STL10
+    stl_full = STL10(root, split='unlabeled', download=True)
+    stl_train_idx, stl_val_idx = split_indices(len(stl_full), val_split, split_seed)
+    stl_train = Subset(STL10(root, split='unlabeled', download=True, transform=tf_train), stl_train_idx)
+    stl_val   = Subset(STL10(root, split='unlabeled', download=True, transform=tf_val), stl_val_idx)
 
-    # 2) split
-    total = len(full)
-    val_size = int(val_split * total)
-    train_size = total - val_size
-    g = torch.Generator().manual_seed(split_seed)
-    train_ds, val_ds = random_split(full, [train_size, val_size], generator=g)
+    # TinyImageNet
+    tin_full = ImageFolder(os.path.join(root, 'tiny-imagenet-200', 'train'))
+    tin_train_idx, tin_val_idx = split_indices(len(tin_full), val_split, split_seed)
+    tin_train = Subset(ImageFolder(os.path.join(root, 'tiny-imagenet-200', 'train'), transform=tf_train), tin_train_idx)
+    tin_val   = Subset(ImageFolder(os.path.join(root, 'tiny-imagenet-200', 'train'), transform=tf_val), tin_val_idx)
 
-    # 3) loaders
+    # CIFAR10
+    cifar_full = CIFAR10(root, train=True, download=True)
+    cifar_train_idx, cifar_val_idx = split_indices(len(cifar_full), val_split, split_seed)
+    cifar_train = Subset(CIFAR10(root, train=True, download=True, transform=tf_train), cifar_train_idx)
+    cifar_val   = Subset(CIFAR10(root, train=True, download=True, transform=tf_val), cifar_val_idx)
+
+    # Concat
+    train_ds = ConcatDataset([stl_train, tin_train, cifar_train])
+    val_ds   = ConcatDataset([stl_val, tin_val, cifar_val])
+
     train_loader = DataLoader(train_ds,
                               batch_size=batch_size,
                               shuffle=True,
@@ -335,6 +358,70 @@ def create_pretrain_loaders(
     )
 
     return train_loader, val_loader
+# def create_pretrain_loaders(
+#     split_seed: int,
+#     root: str = 'data',
+#     image_size: int = 32,  # changed default to 32
+#     batch_size: int = 256,
+#     num_workers: int = 10,
+#     mean: tuple = (0.485, 0.456, 0.406),
+#     std: tuple  = (0.229, 0.224, 0.225),
+#     val_split: float = 0.1,
+#     prefetch_factor: int = 2,
+#     persistent_workers: bool = True
+
+# ):
+#     """
+#     Build DataLoaders over the STL-10 unlabeled split + TinyImageNet train split + CIFAR-10 train split,
+#     all resized to `image_size` and normalized by the given mean/std, then split
+#     into train & val for MAE pretraining.
+
+#     Returns:
+#       train_loader, val_loader
+#     """
+#     tf = T.Compose([
+#         T.Resize((image_size, image_size)),
+#         T.RandomCrop(image_size, padding=4),
+#         T.RandomHorizontalFlip(),
+#         T.ToTensor(),
+#         T.Normalize(mean, std),
+#     ])
+    
+    
+
+#     # 1) Datasets
+#     stl = STL10(root, split='unlabeled', download=True, transform=tf)
+#     tin = ImageFolder(os.path.join(root, 'tiny-imagenet-200', 'train'), transform=tf)
+#     cifar = CIFAR10(root, train=True, download=True, transform=tf)
+
+#     full = ConcatDataset([stl, tin, cifar])
+
+#     # 2) split
+#     total = len(full)
+#     val_size = int(val_split * total)
+#     train_size = total - val_size
+#     g = torch.Generator().manual_seed(split_seed)
+#     train_ds, val_ds = random_split(full, [train_size, val_size], generator=g)
+
+#     # 3) loaders
+#     train_loader = DataLoader(train_ds,
+#                               batch_size=batch_size,
+#                               shuffle=True,
+#                               num_workers=num_workers,
+#                               pin_memory=True,
+#                               prefetch_factor=prefetch_factor,
+#                               persistent_workers=persistent_workers
+#     )
+#     val_loader = DataLoader(val_ds,
+#                             batch_size=batch_size,
+#                             shuffle=False,
+#                             num_workers=num_workers,
+#                             pin_memory=True,
+#                             prefetch_factor=prefetch_factor,
+#                             persistent_workers=persistent_workers
+#     )
+
+#     return train_loader, val_loader
 
 
 if __name__ == "__main__":
