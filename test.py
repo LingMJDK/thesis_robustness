@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 from typing import List, Tuple, Callable
+from datetime import datetime
 
 import torch
 from torch import nn
@@ -241,16 +242,23 @@ def plot_reconstructions(imgs,
                          n=8,
                          mean: tuple = (0.485, 0.456, 0.406),
                          std: tuple  = (0.229, 0.224, 0.225),
+                         root: str = "data/plots"
                          ):
     """
     Plots the first n original images and their reconstructions side by side,
-    with denormalization for CIFAR-10.
+    with denormalization for CIFAR-10. Saves the plot to a unique file in `root`.
 
     Args:
       imgs:       Tensor of shape (B, C, H, W), normalized images.
       recon_imgs: Tensor of shape (B, C, H, W), normalized reconstructions.
       n:          Number of examples to display.
+      root:       Directory to save plots (default: 'data/plots').
     """
+
+    os.makedirs(root, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    save_path = os.path.join(root, f"reconstructions_{timestamp}.png")
+
     imgs = imgs.cpu()
     recon_imgs = recon_imgs.cpu()
 
@@ -266,10 +274,8 @@ def plot_reconstructions(imgs,
     imgs = torch.clamp(imgs, 0, 1)
     recon_imgs = torch.clamp(recon_imgs, 0, 1)
 
-
     plt.figure(figsize=(n*2, 4))
     for i in range(min(n, B)): # Ensure we don't exceed batch size
-
         ax = plt.subplot(2, n, i + 1)
         plt.imshow(imgs[i].permute(1, 2, 0).numpy())
         ax.set_title("Original")
@@ -277,9 +283,11 @@ def plot_reconstructions(imgs,
 
         # Reconstructed image
         ax = plt.subplot(2, n, n + i + 1)
-        plt.imshow(recon_imgs[i].permute(1, 2, 0).numpy()) # No need to clip again here
+        plt.imshow(recon_imgs[i].permute(1, 2, 0).numpy())
         ax.set_title("Reconstructed")
         ax.axis("off")
 
     plt.tight_layout()
-    plt.show()
+    plt.savefig(save_path)
+    plt.close()
+    print(f"Saved reconstructions to {save_path}")
