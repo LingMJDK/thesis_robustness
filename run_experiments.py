@@ -50,6 +50,8 @@ def run_experiment(
     MASK_RATIO: float = 0.75,
     DECODER_LAYERS: int = 4,
     VIS_INTERVAL: int = 2,
+    PATCH_SIZE_PRETRAIN: int = 4,
+    IMAGE_SIZE_PRETRAIN: int = 32,
     PRETRAIN_MEAN_C_STAT = (0.4914, 0.4822, 0.4465),
     PRETRAIN_STD_C_STAT = (0.2470, 0.2435, 0.2616),
     ):
@@ -94,8 +96,8 @@ def run_experiment(
 
     mae_config = {
         "in_channels":    3,
-        "image_size":     96,  # <------ Updated to 96 for pre-training
-        "patch_size":     12,  # <------ Pre-train on patch_size=12 for 96x96 = grid of 64 tokens
+        "image_size":     IMAGE_SIZE_PRETRAIN,  # <------ Updated to 96 for pre-training
+        "patch_size":     PATCH_SIZE_PRETRAIN,  # <------ Pre-train on patch_size=12 for 96x96 = grid of 64 tokens
         "emb_size":       192,
         "encoder_layers": 9,
         "n_heads":        12,
@@ -172,7 +174,7 @@ def run_experiment(
           
         else:
           pre_train_loader, pre_val_loader = create_pretrain_loaders(root='data',
-                                                                    image_size=96,
+                                                                    image_size=IMAGE_SIZE_PRETRAIN,
                                                                     batch_size=BATCH_SIZE_PRE_TRAIN,
                                                                     num_workers=NUM_WORKERS,
                                                                     split_seed=seed,
