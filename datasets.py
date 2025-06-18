@@ -11,7 +11,7 @@ from torchvision import datasets
 from torch.utils.data import Dataset, DataLoader
 import urllib.request
 import zipfile
-from torchvision.datasets import STL10, ImageFolder
+from torchvision.datasets import STL10, ImageFolder, CIFAR10
 from torch.utils.data import ConcatDataset, DataLoader
 import fire
 
@@ -276,7 +276,7 @@ def get_tiny_imagenet_dataset(
 def create_pretrain_loaders(
     split_seed: int,
     root: str = 'data',
-    image_size: int = 96,
+    image_size: int = 32,  # changed default to 32
     batch_size: int = 256,
     num_workers: int = 10,
     mean: tuple = (0.485, 0.456, 0.406),
@@ -287,7 +287,7 @@ def create_pretrain_loaders(
 
 ):
     """
-    Build DataLoaders over the STL-10 unlabeled split + TinyImageNet train split,
+    Build DataLoaders over the STL-10 unlabeled split + TinyImageNet train split + CIFAR-10 train split,
     all resized to `image_size` and normalized by the given mean/std, then split
     into train & val for MAE pretraining.
 
@@ -305,8 +305,9 @@ def create_pretrain_loaders(
     # 1) Datasets
     stl = STL10(root, split='unlabeled', download=True, transform=tf)
     tin = ImageFolder(os.path.join(root, 'tiny-imagenet-200', 'train'), transform=tf)
+    cifar = CIFAR10(root, train=True, download=True, transform=tf)
 
-    full = ConcatDataset([stl, tin])
+    full = ConcatDataset([stl, tin, cifar])
 
     # 2) split
     total = len(full)
