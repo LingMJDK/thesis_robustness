@@ -173,7 +173,7 @@ def run_experiment(
                                         num_workers=NUM_WORKERS, pin_memory=True, generator=g)
           
         else:
-          pre_train_loader, pre_val_loader = create_pretrain_loaders(root='data',
+          pre_train_loader, pre_val_loader = create_pretrain_loaders(root=DATA_DIR,
                                                                     image_size=IMAGE_SIZE_PRETRAIN,
                                                                     batch_size=BATCH_SIZE_PRE_TRAIN,
                                                                     num_workers=NUM_WORKERS,

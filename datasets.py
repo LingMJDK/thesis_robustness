@@ -13,6 +13,7 @@ import urllib.request
 import zipfile
 from torchvision.datasets import STL10, ImageFolder
 from torch.utils.data import ConcatDataset, DataLoader
+import fire
 
 class CIFAR10C(Dataset):
     def __init__(
@@ -337,5 +338,5 @@ def create_pretrain_loaders(
 
 if __name__ == "__main__":
     # download_and_extract_cifar10c()
-    get_tiny_imagenet_dataset()
+    fire.FIRE(get_tiny_imagenet_dataset())
     pass
