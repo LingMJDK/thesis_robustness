@@ -338,5 +338,5 @@ def create_pretrain_loaders(
 
 if __name__ == "__main__":
     # download_and_extract_cifar10c()
-    fire.FIRE(get_tiny_imagenet_dataset())
+    fire.Fire(get_tiny_imagenet_dataset())
     pass
