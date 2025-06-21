@@ -294,7 +294,7 @@ def run_experiment(
         # Build classifier from MAE encoder
         elif TRAIN_MODE == "MAE_finetune":
           # Find the right checkpoint file for this seed
-          ckpt_dir = os.path.join(CHECKPOINT_DIR, f"checkpoints_MAE2_ViT_PreTrain")
+          ckpt_dir = os.path.join(CHECKPOINT_DIR, f"checkpoints_MAE_ViT_PreTrain")
           ckpt_path = os.path.join(ckpt_dir, PRETRAIN_CKPT_FILENAME[int((str(seed))[0]) - 1])
           assert os.path.isfile(ckpt_path), f"No such file {ckpt_path}"
 
