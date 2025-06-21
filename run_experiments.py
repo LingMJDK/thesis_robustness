@@ -358,6 +358,10 @@ def run_experiment(
               if epoch == UNFREEZE and TRAIN_MODE == 'MAE_finetune':
                   for param in vit.encoder.parameters():
                       param.requires_grad = True
+                  classifier_optimizer = torch.optim.AdamW(vit.parameters(), lr=LEARNING_RATE_MAE, weight_decay=WEIGHT_DECAY)
+                  classifier_scheduler = torch.optim.lr_scheduler.LambdaLR(classifier_optimizer, lr_lambda, last_epoch=epoch -1)
+                  print(f"Unfroze encoder and set LR to {LEARNING_RATE_MAE} at epoch {epoch}")
+                      
 
               # Validation
               val_loss, val_acc = test_step(model=vit,
