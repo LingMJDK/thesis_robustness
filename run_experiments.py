@@ -359,7 +359,10 @@ def run_experiment(
                   for param in vit.encoder.parameters():
                       param.requires_grad = True
                   classifier_optimizer = torch.optim.AdamW(vit.parameters(), lr=LEARNING_RATE_MAE, weight_decay=WEIGHT_DECAY)
-                  classifier_scheduler = torch.optim.lr_scheduler.LambdaLR(classifier_optimizer, lr_lambda, last_epoch=epoch -1)
+                  # Set initial_lr for each param group
+                  for param_group in classifier_optimizer.param_groups:
+                      param_group['initial_lr'] = LEARNING_RATE_MAE
+                  classifier_scheduler = torch.optim.lr_scheduler.LambdaLR(classifier_optimizer, lr_lambda, last_epoch=epoch - 1)
                   print(f"Unfroze encoder and set LR to {LEARNING_RATE_MAE} at epoch {epoch}")
                       
 
