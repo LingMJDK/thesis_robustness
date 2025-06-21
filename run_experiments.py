@@ -26,7 +26,7 @@ import fire
 def run_experiment(
     TRAIN_MODE: str = 'MAE_finetune',
     PRETRAIN_CKPT_FILENAME: List[str] = ["MAE_ViT_PreTrain_S11_epoch200_20250618_184953.pth", "MAE_ViT_PreTrain_S22_epoch200_20250618_222624.pth", "MAE_ViT_PreTrain_S33_epoch200_20250619_015442.pth"],
-    UNFREEZE: str = 200,
+    UNFREEZE: int = 200,
     DROPOUT_MAE: float = 0.0,  # decreased from 0.1
     SEEDS: list = [11], # [11, 22, 33],
     EPOCHS: int = 10,
@@ -60,6 +60,13 @@ def run_experiment(
     train_modes = ['ViT_base',
                    'MAE_pretrain',
                    'MAE_finetune']
+    
+    augmix_config = {
+    "severity": 3,
+    "width": 3,
+    "depth": -1,
+    "alpha": 1.0
+    }
 
 
 
@@ -158,9 +165,9 @@ def run_experiment(
         # Prepare data splits and loaders
         train_data, val_data, _ = create_train_val_test_ds(
             data_seed=seed,
-            use_simple_augmix=False,
-            use_advanced_augmix=False,
-            augmix_config=None,
+            use_simple_augmix=USE_SIMPLE_AUGMIX,
+            use_advanced_augmix=USE_ADVANCED_AUGMIX,
+            augmix_config=augmix_config,
             root=DATA_DIR,
             mean=mean,
             std=std
