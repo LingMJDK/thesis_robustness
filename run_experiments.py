@@ -17,14 +17,15 @@ from timeit import default_timer as Timer
 from utils import save_dataframe_if_not_exists, save_checkpoint, lr_lambda, print_train_time, lr_lambda_MAE
 from train import train_step, train_step_adv_AUGMIX, mae_train_step, accuracy_fn
 from test import test_step, mae_test_step
+from typing import List
 
 from datasets import create_train_val_test_ds, create_pretrain_loaders
 from model import ViTClassificationHead, MaskedAutoencoderViT, build_finetune_vit_from_mae
 import fire
 
 def run_experiment(
-    TRAIN_MODE: str = 'MAE_pretrain',
-    PRETRAIN_CKPT_FILENAME: str = "",
+    TRAIN_MODE: str = 'MAE_finetune',
+    PRETRAIN_CKPT_FILENAME: List[str] = ["MAE_ViT_PreTrain_S11_epoch200_20250618_184953.pth", "MAE_ViT_PreTrain_S22_epoch200_20250618_222624.pth", "MAE_ViT_PreTrain_S33_epoch200_20250619_015442.pth"],
     UNFREEZE: str = 200,
     DROPOUT_MAE: float = 0.0,  # decreased from 0.1
     SEEDS: list = [11], # [11, 22, 33],
@@ -293,8 +294,8 @@ def run_experiment(
         # Build classifier from MAE encoder
         elif TRAIN_MODE == "MAE_finetune":
           # Find the right checkpoint file for this seed
-          ckpt_dir = os.path.join(CHECKPOINT_DIR, f"checkpoints_MAE_ViT_PreTrain")
-          ckpt_path = os.path.join(ckpt_dir, PRETRAIN_CKPT_FILENAME)
+          ckpt_dir = os.path.join(CHECKPOINT_DIR, f"checkpoints_MAE2_ViT_PreTrain")
+          ckpt_path = os.path.join(ckpt_dir, PRETRAIN_CKPT_FILENAME[int((str(seed))[0]) - 1])
           assert os.path.isfile(ckpt_path), f"No such file {ckpt_path}"
 
           # Load checkpoint into MAE and build ViT
